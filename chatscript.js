@@ -12,9 +12,18 @@ var clear_btn = document.getElementById('clear_chat')
 var online_div = document.getElementById('onlineusers')
 
 
+var chatbox_private = document.getElementById('chatboxprivate')
+var msg_private_input = document.getElementById('msgprivate')
+var send_private_btn = document.getElementById('sendprivate')
+var inputiduser = document.getElementById('inputiduser')
+
+
 mywebsocket = new WebSocket('ws://localhost:4000')
 
 console.log(mywebsocket);
+
+let allprivate = {}
+
 // open the connection
 mywebsocket.onopen=function (){
     console.log('connection opened', this);
@@ -35,21 +44,35 @@ mywebsocket.onmessage= function (event){
     msg_content = JSON.parse(event.data)
     if (msg_content.type==='login'){
         chatbox.innerHTML +=`<h3 class="text-center text-success"> ${msg_content.message} </h3>`
+
     }else if(msg_content.type==='logout'){
         chatbox.innerHTML +=`<h3 class="text-center text-danger"> ${msg_content.message} </h3>`
+
+
 
     }else if(msg_content.type==='chat') {
         chatbox.innerHTML +=`<h4 class="w-50 bg-dark rounded-1 text-wrap
         text-light p-2 mx-2"> ${msg_content.message} </h4>`
 
-    }
-    // msg_content.online
-    online_div.innerHTML ='';
-    msg_content.online.forEach((element)=>{
-        online_div.innerHTML += `<li class="list-group-item">
-<span class="rounded-circle px-2 m-1 bg-success" ></span>${element} </li>`
-    })
+    
+    }else if(msg_content.type==='private') {
+        chatbox.innerHTML +=`<h4 class="w-50 bg-danger rounded-1 text-wrap
+        text-light p-2 mx-2"> Private -> ${msg_content.message} </h4>`
 
+    }
+
+    if(msg_content.online){
+        
+
+        online_div.innerHTML ='<li>username : id</li>';
+        msg_content.online.forEach((element)=>{
+            online_div.innerHTML += `<li class="list-group-item">
+            <span class="rounded-circle px-2 m-1 bg-success" ></span>${element.username}  : ${element.id}
+    
+            </li>`
+        })
+
+    }
 
 }
 
@@ -69,6 +92,15 @@ send_btn.addEventListener('click', function (){
     chatbox.innerHTML +=`<h4 class="ms-auto w-50 bg-primary text-wrap
 rounded-2 text-light p-2 mx-2" >Me: ${msg_val} </h4>`
     msg_input.value = '';
+});
+send_private_btn.addEventListener('click', function (){
+    msg_val = msg_private_input.value;
+    message_obj = {
+        body: `${username}:${msg_val}`,
+        private: true,
+        to_user : inputiduser.value
+    }
+    mywebsocket.send(JSON.stringify(message_obj));
 });
 
 clear_btn.addEventListener('click', function (){

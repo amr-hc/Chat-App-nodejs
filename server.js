@@ -5,8 +5,8 @@ const clients = [];
 const server = new WebSocket.Server({ port: 4000 });
 
 server.on('connection', (ws) => {
-    // connected(ws);
-    clients.push(ws);
+    connected(ws);
+    // clients.push(ws);
     ws.on('message', (message) => {
         handle(ws, message);
     });
@@ -15,25 +15,43 @@ server.on('connection', (ws) => {
     });
 });
 
-// function connected(ws) {
-//     userIds++;
-//     ws.id = userIds;
-//     clients.push(ws);
-// }
-
-function handle(ws, message) {
-    console.log('Received:', message);
-    let messageData = prepareMessage(message);
-    console.log('messageData:', messageData);
-    if (messageData.username) {
-        ws.username = messageData.username;
-        ws.send(JSON.stringify({ online: onlineUsers() }));
-    }
-    messageData.online = onlineUsers();
-    sendToAllClients(JSON.stringify(messageData), ws);
+function connected(ws) {
+    userIds++;
+    ws.id = userIds;
+    clients.push(ws);
+    const data = { online: onlineUsers() };
+    clients.forEach(client => {
+            client.send(JSON.stringify(data));
+        
+    });
+    
 }
 
-function prepareMessage(messageObj) {
+function handle(ws, message) {
+    let messageData = prepareMessage(message,ws);
+    if (messageData.username) {
+        ws.username = messageData.username;
+
+        clients.forEach(client => {
+            client.send(JSON.stringify({ online: onlineUsers() }));
+        
+    });
+    }else if (messageData.to_user){
+        clients.forEach(client => {
+            if (client.id == messageData.to_user) {
+                client.send(JSON.stringify(messageData));
+            }
+        });
+
+
+    }else{
+        messageData.online = onlineUsers();
+        sendToAllClients(JSON.stringify(messageData), ws);
+    }
+
+}
+
+function prepareMessage(messageObj,ws) {
     let data = {};
     const receivedData = JSON.parse(messageObj);
     if (receivedData.login && receivedData.username) {
@@ -43,14 +61,18 @@ function prepareMessage(messageObj) {
 
         data = { username: username, message: msgToSend, type: 'login' };
         
+    }else if (receivedData.private) {
+        data = { message: receivedData.body, type: 'private', from_user:ws.id, to_user: receivedData.to_user};
+    
     } else if (receivedData.body) {
         data = { message: receivedData.body, type: 'chat' };
+
     }
     return data;
 }
 
 function onlineUsers() {
-    return clients.map(client => client.username);
+    return clients.map(client => { return {"username": client.username, "id": client.id}; });
 }
 
 function sendToAllClients(message, excludeClient) {
